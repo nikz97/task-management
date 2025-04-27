@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"task-management-system/internal/models"
+	"task-management-system/api/domain/models"
 
 	"gorm.io/gorm"
 )
@@ -22,6 +22,21 @@ func NewTaskRepository(db *gorm.DB) TaskRepository {
 	return &taskRepository{db: db}
 }
 
+// buildQuery constructs the base query with filters
+func (r *taskRepository) buildQuery(query models.PaginationQuery) *gorm.DB {
+	db := r.db
+	if query.Status != nil {
+		db = db.Where("status = ?", *query.Status)
+	}
+	return db
+}
+
+// applyPagination applies pagination parameters to the query
+func (r *taskRepository) applyPagination(db *gorm.DB, query models.PaginationQuery) *gorm.DB {
+	offset := (query.Page - 1) * query.PageSize
+	return db.Offset(offset).Limit(query.PageSize)
+}
+
 func (r *taskRepository) Create(task *models.Task) error {
 	return r.db.Create(task).Error
 }
@@ -39,20 +54,16 @@ func (r *taskRepository) GetAll(query models.PaginationQuery) ([]*models.Task, i
 	var tasks []*models.Task
 	var totalItems int64
 
-	// Build the query
-	db := r.db
-	if query.Status != nil {
-		db = db.Where("status = ?", *query.Status)
-	}
+	// Build base query with filters
+	db := r.buildQuery(query)
 
 	// Count total items
 	if err := db.Model(&models.Task{}).Count(&totalItems).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// Get paginated results
-	offset := (query.Page - 1) * query.PageSize
-	err := db.Offset(offset).Limit(query.PageSize).Find(&tasks).Error
+	// Apply pagination and get results
+	err := r.applyPagination(db, query).Find(&tasks).Error
 	if err != nil {
 		return nil, 0, err
 	}

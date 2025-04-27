@@ -3,8 +3,8 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-	"task-management-system/internal/models"
-	"task-management-system/internal/service"
+	"task-management-system/api/domain/models"
+	"task-management-system/api/service"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -30,6 +30,21 @@ func (h *TaskHandler) RegisterRoutes(router *gin.Engine) {
 	}
 }
 
+// parseTaskID extracts and validates the task ID from the request
+func (h *TaskHandler) parseTaskID(c *gin.Context) (uint, error) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		return 0, err
+	}
+	return uint(id), nil
+}
+
+// handleError sends appropriate error response
+func (h *TaskHandler) handleError(c *gin.Context, err error, status int) {
+	c.JSON(status, gin.H{"error": err.Error()})
+}
+
 func (h *TaskHandler) CreateTask(c *gin.Context) {
 	var input struct {
 		Title       string           `json:"title" binding:"required"`
@@ -39,7 +54,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.handleError(c, err, http.StatusBadRequest)
 		return
 	}
 
@@ -48,7 +63,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	task.DueDate = input.DueDate
 
 	if err := h.service.CreateTask(task); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.handleError(c, err, http.StatusBadRequest)
 		return
 	}
 
@@ -56,16 +71,15 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 }
 
 func (h *TaskHandler) GetTask(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
+	id, err := h.parseTaskID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid task id"})
+		h.handleError(c, err, http.StatusBadRequest)
 		return
 	}
 
-	task, err := h.service.GetTask(uint(id))
+	task, err := h.service.GetTask(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+		h.handleError(c, err, http.StatusNotFound)
 		return
 	}
 
@@ -75,13 +89,13 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	var query models.PaginationQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.handleError(c, err, http.StatusBadRequest)
 		return
 	}
 
 	response, err := h.service.GetAllTasks(query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		h.handleError(c, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -89,32 +103,28 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 }
 
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
+	id, err := h.parseTaskID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid task id"})
+		h.handleError(c, err, http.StatusBadRequest)
 		return
 	}
 
-	// Create a map to accept partial updates
 	var updates map[string]interface{}
 	if err := c.ShouldBindJSON(&updates); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.handleError(c, err, http.StatusBadRequest)
 		return
 	}
 
-	// Add the ID to the updates
-	updates["id"] = uint(id)
+	updates["id"] = id
 
 	if err := h.service.UpdateTask(updates); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.handleError(c, err, http.StatusBadRequest)
 		return
 	}
 
-	// Fetch the updated task to return
-	task, err := h.service.GetTask(uint(id))
+	task, err := h.service.GetTask(id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch updated task"})
+		h.handleError(c, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -122,15 +132,14 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 }
 
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
+	id, err := h.parseTaskID(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid task id"})
+		h.handleError(c, err, http.StatusBadRequest)
 		return
 	}
 
-	if err := h.service.DeleteTask(uint(id)); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+	if err := h.service.DeleteTask(id); err != nil {
+		h.handleError(c, err, http.StatusNotFound)
 		return
 	}
 

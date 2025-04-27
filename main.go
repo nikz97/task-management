@@ -2,11 +2,11 @@ package main
 
 import (
 	"log"
-	"task-management-system/internal/api/handlers"
-	"task-management-system/internal/models"
-	"task-management-system/internal/repository"
-	"task-management-system/internal/service"
-	"task-management-system/pkg/database"
+	"task-management-system/api/handlers"
+	"task-management-system/api/domain/models"
+	"task-management-system/api/domain/repository"
+	"task-management-system/api/service"
+	"task-management-system/api/database"
 
 	"github.com/gin-gonic/gin"
 )
