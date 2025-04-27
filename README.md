@@ -2,6 +2,13 @@
 
 A microservice-based Task Management System built with Go, following clean architecture principles.
 
+## Architecture
+
+The system consists of three microservices:
+- **Task Service**: Manages task CRUD operations
+- **User Service**: Handles user authentication and management
+- **Notification Service**: Manages task notifications and alerts
+
 ## Features
 
 - Create, Read, Update, and Delete tasks
@@ -9,7 +16,8 @@ A microservice-based Task Management System built with Go, following clean archi
 - Filter tasks by status
 - RESTful API design
 - PostgreSQL database integration
-- Docker containerization
+- Docker containerization with horizontal scaling
+- Nginx load balancing
 - Environment-based configuration
 - CORS support
 - Request logging
@@ -19,167 +27,129 @@ A microservice-based Task Management System built with Go, following clean archi
 ## Project Structure
 
 ```
-services/task-service/
-├── cmd/
-│   └── api/
-│       └── main.go                 # Application entry point
-├── internal/                       # Private application code
-│   ├── config/
-│   │   └── config.go              # Configuration management
-│   ├── errors/
-│   │   └── errors.go              # Custom error types
-│   └── models/
-│       └── task.go                # Domain models
-├── pkg/                           # Public packages
-│   ├── repository/
-│   │   ├── task_repository.go     # Repository interface
-│   │   └── postgres/
-│   │       └── task_repository.go # PostgreSQL implementation
-│   ├── service/
-│   │   └── task_service.go        # Business logic
-│   └── transport/
-│       └── http/
-│           ├── handlers/          # HTTP request handlers
-│           ├── middleware/        # HTTP middleware
-│           └── routes/            # Route definitions
-├── Dockerfile                     # Container build
-├── docker-compose.yml             # Container orchestration
-├── go.mod                         # Go module file
-└── schema.sql                     # Database schema
+.
+├── services/                    # Microservices
+│   ├── task-service/           # Task Management Service
+│   │   ├── cmd/
+│   │   │   └── api/
+│   │   │       └── main.go    # Application entry point
+│   │   ├── internal/          # Private application code
+│   │   │   ├── config/
+│   │   │   │   └── config.go # Configuration management
+│   │   │   ├── errors/
+│   │   │   │   └── errors.go # Custom error types
+│   │   │   └── models/
+│   │   │       └── task.go   # Domain models
+│   │   ├── pkg/              # Public packages
+│   │   │   ├── repository/
+│   │   │   │   ├── task_repository.go
+│   │   │   │   └── postgres/
+│   │   │   │       └── task_repository.go
+│   │   │   ├── service/
+│   │   │   │   └── task_service.go
+│   │   │   └── transport/
+│   │   │       └── http/
+│   │   │           ├── handlers/
+│   │   │           ├── middleware/
+│   │   │           └── routes/
+│   │   ├── Dockerfile
+│   │   ├── docker-compose.yml
+│   │   ├── nginx.conf
+│   │   ├── go.mod
+│   │   └── schema.sql
+│   ├── user-service/          # User Management Service
+│   └── notification-service/  # Notification Service
+├── .env                       # Environment variables
+├── .env.example              # Example environment variables
+├── docker-compose.yml        # Root docker-compose for all services
+├── go.mod                    # Root go module
+└── go.sum                    # Go module checksums
 ```
-
-## API Endpoints
-
-### Tasks
-
-- `GET /tasks` - List tasks (with pagination and filtering)
-  - Query Parameters:
-    - `page` (default: 1)
-    - `page_size` (default: 10)
-    - `status` (optional: "pending", "in_progress", "completed")
-- `GET /tasks/:id` - Get a specific task
-- `POST /tasks` - Create a new task
-- `PUT /tasks/:id` - Update a task
-- `DELETE /tasks/:id` - Delete a task
 
 ## Getting Started
 
 1. Clone the repository
-2. Start the services using Docker Compose:
+2. Copy `.env.example` to `.env` and configure your environment variables
+3. Start the services using Docker Compose:
    ```bash
+   # Start all services
    docker-compose up --build
+
+   # Or start individual services with scaling
+   cd services/task-service
+   docker-compose up --build --scale task-service=3
    ```
-3. The service will be available at `http://localhost:8080`
+4. The services will be available at:
+   - Task Service: `http://localhost:8080`
+   - User Service: `http://localhost:8081`
+   - Notification Service: `http://localhost:8082`
 
 ## Environment Variables
 
-The service can be configured using the following environment variables:
+Each service can be configured using environment variables. See `.env.example` for the complete list:
 
 ```env
+# Database Configuration
 DB_HOST=postgres
 DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_NAME=taskdb
-SERVER_PORT=8080
+
+# Service Ports
+TASK_SERVICE_PORT=8080
+USER_SERVICE_PORT=8081
+NOTIFICATION_SERVICE_PORT=8082
 ```
 
 ## Architecture
 
 The system follows clean architecture principles with clear separation of concerns:
 
-- **Domain Layer** (`internal/models/`): Contains business entities
-  - Task model with status and validation
+### Task Service
+- **Domain Layer** (`internal/models/`): Task entities and validation
+- **Repository Layer** (`pkg/repository/`): Data access and PostgreSQL implementation
+- **Service Layer** (`pkg/service/`): Business logic and task management
+- **Transport Layer** (`pkg/transport/`): HTTP handlers, middleware, and routes
 
-- **Repository Layer** (`pkg/repository/`): Data access layer
-  - Interface definition
-  - PostgreSQL implementation
+### User Service
+- User authentication and management
+- JWT token generation and validation
+- User profile management
 
-- **Service Layer** (`pkg/service/`): Business logic
-  - Task management
-  - Validation
-  - Business rules
+### Notification Service
+- Task status change notifications
+- Email notifications
+- WebSocket support for real-time updates
 
-- **Transport Layer** (`pkg/transport/`): HTTP handling
-  - Request handlers
-  - Route definitions
-  - Middleware (CORS, Logging, Recovery)
+## Horizontal Scaling
 
-## Testing the APIs
+The services are designed for horizontal scaling:
+- Multiple instances of each service can run simultaneously
+- Nginx load balancers distribute traffic across instances
+- Shared PostgreSQL databases ensure data consistency
+- Stateless design allows for easy scaling
 
-### 1. Create Task
+To scale a service:
 ```bash
-curl -X POST "http://localhost:8080/tasks" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "New Task",
-    "description": "Task description",
-    "status": "pending",
-    "due_date": "2024-05-01T00:00:00Z"
-  }'
+cd services/<service-name>
+docker-compose up --build --scale <service-name>=3
 ```
 
-### 2. Get Task
-```bash
-curl -X GET "http://localhost:8080/tasks/1"
-```
+## API Documentation
 
-### 3. Update Task
-```bash
-curl -X PUT "http://localhost:8080/tasks/1" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "status": "in_progress",
-    "title": "Updated Task",
-    "description": "Updated description"
-  }'
-```
+Each service has its own API documentation. See the respective service's README.md for detailed API endpoints.
 
-### 4. List Tasks
-```bash
-# Get all tasks
-curl -X GET "http://localhost:8080/tasks"
-
-# Get tasks with pagination
-curl -X GET "http://localhost:8080/tasks?page=1&page_size=5"
-
-# Get tasks filtered by status
-curl -X GET "http://localhost:8080/tasks?status=pending"
-```
-
-### 5. Delete Task
-```bash
-curl -X DELETE "http://localhost:8080/tasks/1"
-```
-
-## Response Formats
-
-### Task Object
-```json
-{
-  "id": 1,
-  "title": "Task Title",
-  "description": "Task Description",
-  "status": "pending",
-  "due_date": "2024-05-01T00:00:00Z",
-  "created_at": "2024-04-27T10:00:00Z",
-  "updated_at": "2024-04-27T10:00:00Z"
-}
-```
-
-### List Response
-```json
-{
-  "data": [...],
-  "page": 1,
-  "page_size": 10,
-  "total_items": 5
-}
-```
+### Task Service Endpoints
+- `GET /tasks` - List tasks (with pagination and filtering)
+- `GET /tasks/:id` - Get a specific task
+- `POST /tasks` - Create a new task
+- `PUT /tasks/:id` - Update a task
+- `DELETE /tasks/:id` - Delete a task
 
 ## Error Handling
 
-The service uses custom error types for different scenarios:
+Each service implements custom error types for different scenarios:
 - `NotFound`: Resource not found
 - `InvalidInput`: Invalid request data
 - `DatabaseError`: Database operation failures
@@ -187,26 +157,27 @@ The service uses custom error types for different scenarios:
 
 ## Middleware
 
-The service includes the following middleware:
+Common middleware across services:
 - **CORS**: Handles cross-origin requests
 - **Logger**: Logs request details and duration
 - **Recovery**: Recovers from panics
+- **Auth**: JWT token validation (User Service)
 
 ## Docker Support
 
-The service is containerized using Docker and can be run using Docker Compose:
+The services are containerized using Docker and can be run using Docker Compose:
 
 ```bash
-# Build and start services
+# Build and start all services
 docker-compose up --build
 
-# Stop services
+# Stop all services
 docker-compose down
 ```
 
 ## Development
 
-To run the service locally without Docker:
+To run services locally without Docker:
 
 1. Install dependencies:
    ```bash
@@ -218,7 +189,8 @@ To run the service locally without Docker:
    docker-compose up postgres
    ```
 
-3. Run the service:
+3. Run a service:
    ```bash
+   cd services/<service-name>
    go run cmd/api/main.go
    ``` 
