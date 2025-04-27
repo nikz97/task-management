@@ -112,15 +112,6 @@ The system follows clean architecture principles with clear separation of concer
 - **Service Layer** (`pkg/service/`): Business logic and task management
 - **Transport Layer** (`pkg/transport/`): HTTP handlers, middleware, and routes
 
-### User Service
-- User authentication and management
-- JWT token generation and validation
-- User profile management
-
-### Notification Service
-- Task status change notifications
-- Email notifications
-- WebSocket support for real-time updates
 
 ## Horizontal Scaling
 
