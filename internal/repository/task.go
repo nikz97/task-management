@@ -10,7 +10,7 @@ type TaskRepository interface {
 	Create(task *models.Task) error
 	GetByID(id uint) (*models.Task, error)
 	GetAll(query models.PaginationQuery) ([]*models.Task, int64, error)
-	Update(task *models.Task) error
+	Update(id uint, updates map[string]interface{}) error
 	Delete(id uint) error
 }
 
@@ -60,8 +60,12 @@ func (r *taskRepository) GetAll(query models.PaginationQuery) ([]*models.Task, i
 	return tasks, totalItems, nil
 }
 
-func (r *taskRepository) Update(task *models.Task) error {
-	return r.db.Save(task).Error
+func (r *taskRepository) Update(id uint, updates map[string]interface{}) error {
+	// Remove id from updates as it's not a field to update
+	delete(updates, "id")
+	
+	// Use GORM's Updates method for partial updates
+	return r.db.Model(&models.Task{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func (r *taskRepository) Delete(id uint) error {

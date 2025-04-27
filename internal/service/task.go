@@ -10,7 +10,7 @@ type TaskService interface {
 	CreateTask(task *models.Task) error
 	GetTask(id uint) (*models.Task, error)
 	GetAllTasks(query models.PaginationQuery) (models.PaginatedResponse, error)
-	UpdateTask(task *models.Task) error
+	UpdateTask(updates map[string]interface{}) error
 	DeleteTask(id uint) error
 }
 
@@ -55,11 +55,19 @@ func (s *taskService) GetAllTasks(query models.PaginationQuery) (models.Paginate
 	return models.NewPaginatedResponse(tasks, query, totalItems), nil
 }
 
-func (s *taskService) UpdateTask(task *models.Task) error {
-	if task.Title == "" {
-		return errors.New("title is required")
+func (s *taskService) UpdateTask(updates map[string]interface{}) error {
+	id, ok := updates["id"].(uint)
+	if !ok {
+		return errors.New("task id is required")
 	}
-	return s.repo.Update(task)
+
+	// Verify task exists
+	existingTask, err := s.repo.GetByID(id)
+	if err != nil {
+		return err
+	}
+
+	return s.repo.Update(existingTask.ID, updates)
 }
 
 func (s *taskService) DeleteTask(id uint) error {

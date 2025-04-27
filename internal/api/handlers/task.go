@@ -96,15 +96,25 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	var task models.Task
-	if err := c.ShouldBindJSON(&task); err != nil {
+	// Create a map to accept partial updates
+	var updates map[string]interface{}
+	if err := c.ShouldBindJSON(&updates); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	task.ID = uint(id)
-	if err := h.service.UpdateTask(&task); err != nil {
+	// Add the ID to the updates
+	updates["id"] = uint(id)
+
+	if err := h.service.UpdateTask(updates); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Fetch the updated task to return
+	task, err := h.service.GetTask(uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch updated task"})
 		return
 	}
 
