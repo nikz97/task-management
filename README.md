@@ -8,30 +8,37 @@ A microservice-based Task Management System built with Go, following clean archi
 - Pagination support for task listing
 - Filter tasks by status
 - RESTful API design
-- MySQL database integration
+- PostgreSQL database integration
+- Docker containerization
+- Environment-based configuration
 
 ## Project Structure
 
 ```
 .
-├── cmd/
-│   └── api/
-│       └── main.go
-├── internal/
-│   ├── domain/
-│   │   └── task.go
-│   ├── repository/
-│   │   └── task_repository.go
-│   ├── service/
-│   │   └── task_service.go
-│   └── handler/
-│       └── task_handler.go
-├── pkg/
-│   └── database/
-│       └── mysql.go
-├── .env
-├── go.mod
-└── README.md
+├── api/
+│   ├── config/         # Configuration management
+│   ├── database/       # Database connection and configuration
+│   ├── domain/         # Core business logic
+│   │   ├── models/     # Domain models
+│   │   └── repository/ # Data access interfaces and implementations
+│   ├── handlers/       # HTTP request handlers
+│   ├── routes/         # Route definitions
+│   └── service/        # Business logic layer
+├── tests/              # Test files
+│   ├── handlers/       # Handler tests
+│   ├── service/        # Service tests
+│   ├── repository/     # Repository tests
+│   └── database/       # Database tests
+├── .env                # Environment variables
+├── .env.example        # Example environment variables
+├── docker-compose.yml  # Docker compose configuration
+├── Dockerfile         # Docker build configuration
+├── go.mod             # Go module file
+├── go.sum             # Go module checksum
+├── main.go            # Application entry point
+├── README.md          # Project documentation
+└── schema.sql         # Database schema
 ```
 
 ## API Endpoints
@@ -45,36 +52,79 @@ A microservice-based Task Management System built with Go, following clean archi
 ## Getting Started
 
 1. Clone the repository
-2. Copy `.env.example` to `.env` and update the database configuration
-3. Run `go mod download` to install dependencies
-4. Run `go run cmd/api/main.go` to start the server
+2. Copy `.env.example` to `.env` and update the configuration:
+   ```bash
+   cp .env.example .env
+   ```
+3. Start the PostgreSQL database using Docker:
+   ```bash
+   docker-compose up -d db
+   ```
+4. Run `go mod download` to install dependencies
+5. Run `go run main.go` to start the server
 
 ## Database Setup
 
-The application uses MySQL. Create a database and update the `.env` file with your database credentials.
+The application uses PostgreSQL. The database configuration can be set through environment variables in the `.env` file:
+
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=taskdb
+```
 
 ## Architecture
 
 The system follows clean architecture principles with clear separation of concerns:
 
-- **Domain Layer**: Contains business entities and interfaces
-- **Repository Layer**: Handles data persistence
-- **Service Layer**: Implements business logic
-- **Handler Layer**: Manages HTTP requests and responses
+- **Domain Layer** (`api/domain/`): Contains business entities and interfaces
+  - Models: Core business entities
+  - Repository: Data access interfaces
 
-## Scalability
+- **Service Layer** (`api/service/`): Implements business logic
+  - Task management
+  - Validation
+  - Business rules
 
-The service is designed to be horizontally scalable:
-- Stateless design allows multiple instances
-- Database connection pooling
-- Configurable through environment variables
+- **Handler Layer** (`api/handlers/`): Manages HTTP requests and responses
+  - Request parsing
+  - Response formatting
+  - Error handling
 
-## Inter-Service Communication
+- **Database Layer** (`api/database/`): Database connection and configuration
+  - Connection management
+  - Configuration
+  - Environment variables
 
-For future microservice integration:
-- REST APIs for synchronous communication
-- Message queues (e.g., RabbitMQ) for asynchronous communication
-- gRPC for efficient service-to-service communication 
+## Testing
+
+The project includes comprehensive test coverage:
+
+- Unit tests for all layers
+- Integration tests for API endpoints
+- Database tests
+- Mock implementations for testing
+
+Run tests with:
+```bash
+go test ./tests/...
+```
+
+## Docker Support
+
+The application can be run using Docker:
+
+1. Build the image:
+   ```bash
+   docker build -t task-management .
+   ```
+
+2. Run with Docker Compose:
+   ```bash
+   docker-compose up
+   ```
 
 ## Testing the APIs
 
@@ -90,9 +140,6 @@ curl -X GET "http://localhost:8080/tasks?page=1&page_size=5" | json_pp
 
 # Get tasks filtered by status
 curl -X GET "http://localhost:8080/tasks?status=pending" | json_pp
-
-# Get tasks with both pagination and status filter
-curl -X GET "http://localhost:8080/tasks?page=1&page_size=5&status=in_progress" | json_pp
 ```
 
 ### 2. Get Single Task
@@ -112,32 +159,15 @@ curl -X POST "http://localhost:8080/tasks" \
     "status": "pending",
     "due_date": "2025-04-30T00:00:00Z"
   }' | json_pp
-
-# Create task with minimal fields
-curl -X POST "http://localhost:8080/tasks" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "New Task",
-    "description": "Task description"
-  }' | json_pp
 ```
 
 ### 4. Update Task
 ```bash
-# Update task status only
+# Update task status
 curl -X PUT "http://localhost:8080/tasks/1" \
   -H "Content-Type: application/json" \
   -d '{
     "status": "completed"
-  }' | json_pp
-
-# Update multiple fields
-curl -X PUT "http://localhost:8080/tasks/1" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "status": "in_progress",
-    "description": "Updated description",
-    "due_date": "2025-05-01T00:00:00Z"
   }' | json_pp
 ```
 
