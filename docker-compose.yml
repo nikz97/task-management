@@ -1,70 +1,41 @@
 version: '3.8'
 
 services:
-  app:
+  task-service:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: services/task-service/Dockerfile
     ports:
       - "8080:8080"
     environment:
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=taskdb
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: taskdb
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
-    networks:
-      - task-network
 
-  db:
-    image: postgres:15
+  postgres:
+    image: postgres:latest
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=taskdb
-    volumes:
-      - db-data:/var/lib/postgresql/data
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: taskdb
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./services/task-service/schema.sql:/docker-entrypoint-initdb.d/schema.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
-    command: 
-      - "postgres"
-      - "-c"
-      - "max_connections=100"
-      - "-c"
-      - "shared_buffers=256MB"
-      - "-c"
-      - "effective_cache_size=768MB"
-      - "-c"
-      - "maintenance_work_mem=64MB"
-      - "-c"
-      - "checkpoint_completion_target=0.9"
-      - "-c"
-      - "wal_buffers=16MB"
-      - "-c"
-      - "default_statistics_target=100"
-      - "-c"
-      - "random_page_cost=1.1"
-      - "-c"
-      - "effective_io_concurrency=200"
-      - "-c"
-      - "work_mem=2621kB"
-      - "-c"
-      - "min_wal_size=1GB"
-      - "-c"
-      - "max_wal_size=4GB"
-    networks:
-      - task-network
 
 volumes:
-  db-data:
+  postgres_data:
 
 networks:
   task-network:
